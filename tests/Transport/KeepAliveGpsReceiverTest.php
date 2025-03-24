@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace PetitPress\GpsMessengerBundle\Tests\Transport;
 
 use Google\Cloud\PubSub\Message;
@@ -9,18 +7,14 @@ use Google\Cloud\PubSub\PubSubClient;
 use Google\Cloud\PubSub\Subscription;
 use PetitPress\GpsMessengerBundle\Transport\GpsConfigurationInterface;
 use PetitPress\GpsMessengerBundle\Transport\GpsReceiver;
+use PetitPress\GpsMessengerBundle\Transport\KeepAliveGpsReceiver;
 use PetitPress\GpsMessengerBundle\Transport\Stamp\GpsReceivedStamp;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
-use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Exception\TransportException;
 use Symfony\Component\Messenger\Transport\Serialization\SerializerInterface;
 
-/**
- * @author Mickael Prévôt <mickael.prevot@ext.adeo.com>
- * @author Ronald Marfoldi <ronald.marfoldi@petitpress.sk>
- */
-class GpsReceiverTest extends TestCase
+class KeepAliveGpsReceiverTest extends TestCase
 {
     private const SUBSCRIPTION_NAME = 'subscription-name';
 
@@ -39,7 +33,7 @@ class GpsReceiverTest extends TestCase
      */
     private MockObject $subscriptionMock;
 
-    private GpsReceiver $gpsReceiver;
+    private KeepAliveGpsReceiver $gpsReceiver;
 
     protected function setUp(): void
     {
@@ -49,38 +43,10 @@ class GpsReceiverTest extends TestCase
         /** @var SerializerInterface&MockObject $serializerMock */
         $serializerMock = $this->createMock(SerializerInterface::class);
 
-        $this->gpsReceiver = new GpsReceiver(
+        $this->gpsReceiver = new KeepAliveGpsReceiver(
             $this->pubSubClientMock,
             $this->gpsConfigurationMock,
             $serializerMock,
-        );
-    }
-
-    public function testItRejects(): void
-    {
-        $gpsMessage = new Message(['data' => '']);
-
-        $this->gpsConfigurationMock
-            ->expects(static::once())
-            ->method('getSubscriptionName')
-            ->willReturn(self::SUBSCRIPTION_NAME)
-        ;
-
-        $this->subscriptionMock
-            ->expects(static::once())
-            ->method('modifyAckDeadline')
-            ->with($gpsMessage, 0)
-        ;
-
-        $this->pubSubClientMock
-            ->expects(static::once())
-            ->method('subscription')
-            ->with(self::SUBSCRIPTION_NAME)
-            ->willReturn($this->subscriptionMock)
-        ;
-
-        $this->gpsReceiver->reject(
-            EnvelopeFactory::create(new GpsReceivedStamp($gpsMessage))
         );
     }
 
@@ -96,7 +62,7 @@ class GpsReceiverTest extends TestCase
         $this->subscriptionMock
             ->expects(static::once())
             ->method('modifyAckDeadline')
-            ->with($gpsMessage, GpsReceiver::DEFAULT_KEEPALIVE_SECONDS)
+            ->with($gpsMessage, KeepAliveGpsReceiver::DEFAULT_KEEPALIVE_SECONDS)
         ;
 
         $this->pubSubClientMock
@@ -121,12 +87,4 @@ class GpsReceiverTest extends TestCase
         );
     }
 
-    public function testItThrowsAnExceptionInsteadOfRejecting(): void
-    {
-        $this->expectException(TransportException::class);
-        $this->expectExceptionCode(0);
-        $this->expectExceptionMessage('No GpsReceivedStamp found on the Envelope.');
-
-        $this->gpsReceiver->reject(EnvelopeFactory::create());
-    }
 }

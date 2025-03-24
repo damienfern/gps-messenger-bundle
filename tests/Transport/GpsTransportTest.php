@@ -183,4 +183,5 @@ class GpsTransportTest extends TestCase
     {
         static::assertInstanceOf(GpsSender::class, $this->subject->getSender());
     }
+
 }
